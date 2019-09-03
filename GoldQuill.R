@@ -2,23 +2,35 @@
 rm(list = ls())
 library(tidyverse)
 library(janitor)
-setwd("~/Publications/PeerReviewJournal/2019/ASFMRAmetaASFMRA")
+setwd("~/GitHub/GoldQuill") # user replace directory with where data and R script are stored
 list.files()
 quillData<-read_csv("ASFMRAanalysis.csv")
-quillData<-subset(quillData, year>=2004)
 
 quillData$numAuthors<-10-rowSums(is.na(cbind(quillData$author1, quillData$author2, quillData$author3, quillData$author4, quillData$author5, quillData$author6, quillData$author7, quillData$author8, quillData$author9,quillData$author10)))
 
 quillData$numWtitle<-ifelse(sapply(strsplit(quillData$Title, " "), length)>=2, sapply(strsplit(quillData$Title, " "), length),NA)
 
-data=subset(quillData, GoldQuill == 1)
+quillData$decade<-ifelse(quillData$year>=2010 & quillData$year<=2019, "D2010s",  
+                         ifelse(quillData$year>=2000 & quillData$year<=2009, "D2000s",
+                                ifelse(quillData$year>=1990 & quillData$year<=1999, "D1990s",
+                                       ifelse(quillData$year>=1980 & quillData$year<=1989, "D1980s",
+                                              ifelse(quillData$year>-1979 & quillData$year<=1979, "D1970s", NA)))))
+
+quillData<-subset(quillData, year>=2000) # change year once more data entered into database
+
+mean(tabyl(quillData$year)$n)
+min(tabyl(quillData$year)$n)
+max(tabyl(quillData$year)$n)
+
+
+data=subset(quillData, goldQuill == 1)
 
 ggplot(quillData) + 
-  geom_histogram(aes(x=numWtitle), stat="bin", binwidth = 0.5) + 
-  geom_histogram(data=subset(quillData, goldQuill == 1), aes(x=numWtitle), stat="bin", binwidth = 0.5, fill="gold") + 
-  xlab("Number of Words in Title") + ylab("Number of papers") +
+  geom_histogram(aes(x=numWtitle), stat="bin", binwidth = 0.5, colour = "grey") + 
+  geom_histogram(data=subset(quillData, goldQuill == 1), aes(x=numWtitle), stat="bin", binwidth = 0.5, fill="gold", colour="grey") + 
+  xlab("Number of words in title (Gold Quill in gold)") + ylab("articles") +
   scale_x_continuous(breaks=seq(0,100,1)) + theme_bw()   
-ggsave("numWords.png", width=6, height=4)
+ggsave("Fig4numWords.png", width=6, height=4)
 
 ggplot(quillData) + geom_histogram(aes(x=numAuthors), stat="bin", binwidth = 0.5) + 
   xlab("Number of Authors") + ylab("Number of papers") +
@@ -26,30 +38,65 @@ ggplot(quillData) + geom_histogram(aes(x=numAuthors), stat="bin", binwidth = 0.5
 ggsave("oldFig2numAuthors.png", width=6, height=4)
 
 ggplot(quillData) + 
-  geom_histogram(aes(x=numAuthors), stat="bin", binwidth = 0.5) + 
-  geom_histogram(data=subset(quillData, goldQuill == 1), aes(x=numAuthors), stat="bin", binwidth = 0.5, fill="gold") + 
-  xlab("Number of Authors") + ylab("Number of papers") +
+  geom_histogram(aes(x=numAuthors), stat="bin", binwidth = 0.5, colour="grey") + 
+  geom_histogram(data=subset(quillData, goldQuill == 1), aes(x=numAuthors), stat="bin", binwidth = 0.5, fill="gold", colour="grey") + 
+  xlab("Number of authors (Gold Quill winners in gold)") + ylab("articles") +
   scale_x_continuous(breaks=seq(0,10,1)) + theme_bw()   
 ggsave("Fig2numAuthorsAll.png", width=6, height=4)
 
 tabyl(quillData, numAuthors, year)
-aggregate(numAuthors ~year, data=quillData, FUN="mean")
+
+quillData %>% tabyl(numAuthors, year)
+
+
+#not used
+authorXyear<-aggregate(numAuthors ~year, data=quillData, FUN="mean")
+
+# creates Table 1
+t3<- quillData %>%
+  tabyl(Topic, goldQuill)
+t3
+names(t3)<-c("Topic", "All", "GQ")
+
+t3$ratio<-round(t3$GQ/t3$All,2)
+t3
+write.csv(t3, "Table3FMtopicsGQ.csv")
+
+# end creating Table 1
+
+# graph from Table 1
+
+library(RColorBrewer)
+
+ggplot(data=quillData) +
+  geom_bar(mapping = aes(x= year, fill=Topic), position = "fill", colour="grey") +
+  scale_color_brewer(palette = "Dark2")+
+  xlab(NULL) + theme_bw() +
+  ylab("proportion") +
+  theme(axis.text.x = element_text(angle = 90)) 
+ggsave("Fig7byFMtopic.png", width = 6, height=4)  
+
+# end graph form Table 1
+
+# creates Table 2
+
+tab2<- quillData %>%
+  tabyl(Topic, decade)
+tab2
+
+write.csv(tab2, "Table2FMtopicsDecades.csv")
+# end creating Table 2
+
 
 ggplot(quillData) + geom_col(aes(x=year, y=numAuthors)) + #, col="black", fill="grey") +
-  ylab("Number of authors") + 
-#  scale_x_continuous((breaks=seq(2004, 2020, 1))) +
-  xlab(NULL) +  theme_bw()
+  ylab("authors") + 
+  xlab(NULL) +  theme_bw() + 
+  theme(axis.text.x = element_text(angle = 90)) 
 ggsave("Fig3numAuthorsYear.png", width=6, height=4)
   
   quillDat1<-subset(quillData, goldQuill==1)
 quillDat0<-subset(quillData, goldQuill==0)
 head(quillData)
-
-
-# ? does number of words in title matter? change over time? 
-#tabyl(quillDat1$numWtitle)
-plot(quillDat1$year, quillDat1$numWtitle)
-
 
 GQauthors0<-c(quillDat1$author1, quillDat1$author2, quillDat1$author3, quillDat1$author4, quillDat1$author5, quillDat1$author6, quillDat1$author7, quillDat1$author8, quillDat1$author9, quillDat1$author10)
 GQauthors1<-subset(GQauthors0, is.na(GQauthors0)!=TRUE)
@@ -58,16 +105,18 @@ ggplot(subset(GQauthors2, n>=1), aes(x=reorder(GQauthors1, n), y=n)) +
   xlab("Gold Quill Co-authors") + ylab("number of articles") +
   scale_y_continuous(breaks=seq(0,10,1)) +
   geom_bar(stat="identity") + theme_bw() + coord_flip()
-ggsave("GQcoauthors.png", width=6, height=4)
+ggsave("oldGQcoauthors.png", width=6, height=4)
 
 GQinstits0<-c(quillDat1$instAuthor1, quillDat1$instAuthor2, quillDat1$instAuthor3, quillDat1$instAuthor4, quillDat1$instAuthor5, quillDat1$instAuthor6, quillDat1$instAuthor7, quillDat1$instAuthor8, quillDat1$instAuthor9, quillDat1$instAuthor10)
 GQinstits1<-subset(GQinstits0, is.na(GQinstits0)!=TRUE)
 GQinstits2<-tabyl(GQinstits1)
 ggplot(GQinstits2, aes(x=reorder(GQinstits1, n), y=n)) + 
-  xlab("Gold Quill Institutions (including co-authors)") + ylab("number of articles") +
+#  xlab("Gold Quill Institutions (including co-authors)") + 
+  xlab(NULL) +
+  ylab("number of articles") +
   scale_y_continuous(breaks=seq(0,50,1)) +
     geom_bar(stat="identity") + theme_bw() + coord_flip()
-ggsave("Fig11GQcoauthorsInstits.png", width=6, height=4)
+ggsave("Fig8GQcoauthorsInstits.png", width=6, height=4)
 
 instits0<-c(quillDat0$instAuthor1, quillDat0$instAuthor2, quillDat0$instAuthor3, quillDat0$instAuthor4, quillDat0$instAuthor5, quillDat0$instAuthor6, quillDat0$instAuthor7, quillDat0$instAuthor8, quillDat0$instAuthor9, quillDat0$instAuthor10)
 instits1<-subset(instits0, is.na(instits0)!=TRUE)
@@ -88,10 +137,18 @@ ggplot(instits4, aes(x=loc)) +
   geom_bar(aes(x=reorder(loc,all), y=all), stat="identity", col="black", fill="grey") +
   geom_bar(aes(x=loc, y= win), stat="identity", col="black", fill="gold") +
   scale_y_continuous(breaks=seq(0,150,5)) +
-  ylab("number of authors") + xlab(NULL) +
+  ylab("number of authors (Gold Quill winners in gold)") + xlab(NULL) +
   theme_bw() + coord_flip()
-ggsave("Fig6AllInstitsAllPapers.png", width=6, height=8)
+ggsave("longFig6AllInstitsAllPapers.png", width=6, height=8)
 
+institsGT4<-subset(instits4, all>=4)
+ggplot(institsGT4, aes(x=loc)) + 
+  geom_bar(aes(x=reorder(loc,all), y=all), stat="identity", col="black", fill="grey") +
+  geom_bar(aes(x=loc, y= win), stat="identity", col="black", fill="gold") +
+  scale_y_continuous(breaks=seq(0,150,10)) +
+  ylab("number of authors (Gold Quill winners in gold)") + xlab(NULL) +
+  theme_bw() + coord_flip()
+ggsave("Fig6allInstitsAllPapers4blog.png", width=6, height=8)
 
 
 authors1<-tabyl(quillData$author1)
@@ -106,50 +163,45 @@ ggplot(subset(GQauthorsLead, n>=1), aes(x=reorder(author, n), y=n)) +
   ylab("number of articles") + 
   scale_y_continuous(breaks=seq(0,10,1)) +
   theme_bw() + coord_flip()
-ggsave("leadAuthorGQall.png", width=6, height=8)
+ggsave("oldLeadAuthorGQall.png", width=6, height=8)
 
-ggplot(subset(GQauthorsLead, n>=2), aes(x=reorder(author, n), y=n)) + 
+ggplot(subset(GQauthorsLead, n>=1), aes(x=reorder(author, n), y=n)) + 
   geom_bar(stat="identity", color="black", fill="grey") + xlab("lead author") +
   ylab("frequency") + 
   theme_bw() + coord_flip()
-ggsave("leadAuthorGQ_GT1.png", width=6, height=10)
+ggsave("oldLeadAuthorGQ_GT1.png", width=6, height=10)
 
 ggplot(subset(authors1, n>=3), aes(x=reorder(author, n), y=n)) + 
   geom_bar(stat="identity", color="black", fill="grey") + xlab("lead author") +
   ylab("frequency") + 
-scale_y_continuous(breaks=seq(0,20,2)) +
+  scale_y_continuous(breaks=seq(0,20,2)) +
     theme_bw() + coord_flip()
-ggsave("Fig4leadAuthorAllASFMRA0.png", width=6, height=4)
+ggsave("oldFig4leadAuthorAllASFMRA0.png", width=6, height=6)
 
 ggplot(subset(quillData, !is.na(author1)), aes(x=author1)) + 
   geom_bar(color="black", fill="grey") + xlab("lead author") +
   ylab("frequency") + 
   theme_bw() + coord_flip()
-ggsave("AllLeadAuthors.png", width=6, height=4)
+ggsave("OldAllLeadAuthors.png", width=6, height=4)
 
 
 instit<-tabyl(quillData$instAuthor1)
-names(instit)<-c("instit", "n", "percent1", "percent2")
+names(instit)<-c("instit", "n", "percent1")#, "percent2")
 instit<-subset(instit, n>=2)
 ggplot(subset(instit, !is.na(instit)), aes(x=reorder(instit, n), y=n)) + 
   geom_bar(stat="identity") +#, color="black", fill="grey") + 
-  xlab("institution of lead author (all articles)") +
+#  xlab("institution of lead author (all articles)") +
+  xlab(NULL) +
   ylab("frequency") + scale_y_continuous(breaks = seq(0,50,2)) + 
   theme_bw() + coord_flip()
 ggsave("Fig5AllInstitsLead.png", width=6, height=6, units="in")
 
-mean(tabyl(quillData$year)$n)
-min(tabyl(quillData$year)$n)
-max(tabyl(quillData$year)$n)
-
-
 ggplot(quillData, aes(x=year)) + 
   geom_bar(color="black", fill="grey") + 
   xlab(NULL) +
-  ylab("Number of articles") +   theme_bw()
+  ylab("articles") +   theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) 
 ggsave("Fig1numArticlesYear.png", width=6, height=4)
-
-
 
 geoState<-tabyl(quillData$stateLead)
 names(geoState)<-c("state", "n", "percent1", "percent2")
@@ -158,8 +210,8 @@ ggplot(subset(geoState, !is.na(state)), aes(x=reorder(state, n), y=n)) +
   geom_bar(stat="identity", position="dodge", color="black", fill="grey") + 
   xlab("Geo-location of lead author (all papers)") +
   ylab("frequency") + 
-  theme_bw() + coord_flip() + scale_y_continuous(breaks=seq(0,30,2))
-ggsave("stateLeadAllPapers.png", width = 6, height = 4, units="in")
+  theme_bw() + coord_flip() + scale_y_continuous(breaks=seq(0,100,2))
+ggsave("oldStateLeadAllPapers.png", width = 6, height = 4, units="in")
 
 GQgeoState<-tabyl(quillDat1$stateLead)
 names(GQgeoState)<-c("state", "n", "percent1")#, "percent2")
@@ -169,8 +221,7 @@ ggplot(subset(GQgeoState, !is.na(state)), aes(x=reorder(state, n), y=n)) +
   xlab("Geo-location of lead author (Gold Quill papers)") +
   ylab("frequency") + 
   theme_bw() + coord_flip() + scale_y_continuous(breaks=seq(0,30,1))
-ggsave("Fig10GQstateLead.png", width = 6, height = 4, units="in")
-
+ggsave("OldFig10GQstateLead.png", width = 6, height = 4, units="in")
 
 #### plots authors as GQ and all papers
 allAuthors0<-c(quillData$author1, quillData$author2, quillData$author3, quillData$author4, quillData$author5, quillData$author6, quillData$author7, quillData$author8, quillData$author9, quillData$author10)
@@ -187,7 +238,6 @@ GQAuthors2<-tabyl(GQAuthors1)
 GQAuthors3<-GQAuthors2
 names(GQAuthors3)<-c("author", "win", "percent")
 
-
 allAuthors4<-full_join(allAuthors3, GQAuthors3, by="author")
 
 ggplot(allAuthors4, aes(x=author)) + 
@@ -196,28 +246,31 @@ ggplot(allAuthors4, aes(x=author)) +
   scale_y_continuous(breaks=seq(0,50,5)) +
   ylab("number of papers") + xlab(NULL) +
   theme_bw() + coord_flip()
-ggsave("AllAuthorsAllPapers.png", width=6, height=16)
-
+ggsave("oldAllAuthorsAllPapers.png", width=6, height=16)
 
 #### text mining
 
-# Install
+#run the next 5 lines first time to install packages then remove
 #install.packages("tm")  # for text mining
 #install.packages("SnowballC") # for text stemming
 #install.packages("wordcloud") # word-cloud generator 
 #install.packages("RColorBrewer") # color palettes
-# Load
+#devtools::install_github("lchiffon/wordcloud2") # only run this line once
+
 library("tm")
 library("SnowballC")
 library("wordcloud")
-library("RColorBrewer")
+library("wordcloud2")
 
 text <- quillDat0$Title
 text0 <- quillData$Title
 text1 <-quillDat1$Title
 
+testText <- c("data test strategies testing", "more data strategies for testing")
+testDocs <- Corpus (VectorSource(testText))
+inspect(testDocs)
+
 docs <- Corpus(VectorSource(text))
-inspect(docs)
 docs1 <- Corpus(VectorSource(text1))
 docs0 <- Corpus(VectorSource(text0))
 
@@ -226,13 +279,11 @@ docs <- tm_map(docs, toSpace, "/")
 docs <- tm_map(docs, toSpace, "@")
 docs <- tm_map(docs, toSpace, ",")
 docs <- tm_map(docs, toSpace, "\\|")
-inspect(docs)
 
 docs0 <- tm_map(docs0, toSpace, "/")
 docs0 <- tm_map(docs0, toSpace, "@")
 docs0 <- tm_map(docs0, toSpace, ",")
 docs0 <- tm_map(docs0, toSpace, "\\|")
-inspect(docs0)
 
 docs1 <- tm_map(docs1, toSpace, "/")
 docs1 <- tm_map(docs1, toSpace, "@")
@@ -310,7 +361,6 @@ docs0<-tm_map(docs0, content_transformer(function(x)
 docs1<-tm_map(docs1, content_transformer(function(x) 
   gsub(x, pattern = "farmers", replacement = "farmer")))
 
-
 docs<-tm_map(docs, content_transformer(function(x) 
   gsub(x, pattern = "valuing", replacement = "value")))
 docs0<-tm_map(docs0, content_transformer(function(x) 
@@ -340,11 +390,11 @@ docs1<-tm_map(docs1, content_transformer(function(x)
   gsub(x, pattern = "soybeans", replacement = "soybean")))
 
 docs<-tm_map(docs, content_transformer(function(x) 
-  gsub(x, pattern = "rate", replacement = "rates")))
+  gsub(x, pattern = "rates", replacement = "rate")))
 docs0<-tm_map(docs0, content_transformer(function(x) 
-  gsub(x, pattern = "rate", replacement = "rates")))
+  gsub(x, pattern = "rates", replacement = "rate")))
 docs1<-tm_map(docs1, content_transformer(function(x) 
-  gsub(x, pattern = "rate", replacement = "rates")))
+  gsub(x, pattern = "rates", replacement = "rate")))
 
 docs<-tm_map(docs, content_transformer(function(x) 
   gsub(x, pattern = "producing", replacement = "production")))
@@ -395,7 +445,6 @@ docs0<-tm_map(docs0, content_transformer(function(x)
 docs1<-tm_map(docs1, content_transformer(function(x) 
   gsub(x, pattern = "impacts", replacement = "impact")))
 
-
 docs<-tm_map(docs, content_transformer(function(x) 
   gsub(x, pattern = "crop", replacement = "crops")))
 docs0<-tm_map(docs0, content_transformer(function(x) 
@@ -410,6 +459,7 @@ docs0<-tm_map(docs0, content_transformer(function(x)
 docs1<-tm_map(docs1, content_transformer(function(x) 
   gsub(x, pattern = "cropss", replacement = "crops")))
 
+
 docs<-tm_map(docs, content_transformer(function(x) 
   gsub(x, pattern = "changing", replacement = "changes")))
 docs0<-tm_map(docs0, content_transformer(function(x) 
@@ -418,12 +468,54 @@ docs1<-tm_map(docs1, content_transformer(function(x)
   gsub(x, pattern = "changing", replacement = "changes")))
 
 docs<-tm_map(docs, content_transformer(function(x) 
+  gsub(x, pattern = "farmland", replacement = "land")))
+docs0<-tm_map(docs0, content_transformer(function(x) 
+  gsub(x, pattern = "farmland", replacement = "land")))
+docs1<-tm_map(docs1, content_transformer(function(x) 
+  gsub(x, pattern = "farmland", replacement = "land")))
+
+
+docs<-tm_map(docs, content_transformer(function(x) 
   gsub(x, pattern = "appraisers", replacement = "appraisal")))
 docs0<-tm_map(docs0, content_transformer(function(x) 
   gsub(x, pattern = "appraisers", replacement = "appraisal")))
 docs1<-tm_map(docs1, content_transformer(function(x) 
   gsub(x, pattern = "appraisers", replacement = "appraisal")))
 
+docs<-tm_map(docs, content_transformer(function(x) 
+  gsub(x, pattern = "appraising", replacement = "appraisal")))
+docs0<-tm_map(docs0, content_transformer(function(x) 
+  gsub(x, pattern = "appraising", replacement = "appraisal")))
+docs1<-tm_map(docs1, content_transformer(function(x) 
+  gsub(x, pattern = "appraising", replacement = "appraisal")))
+
+docs<-tm_map(docs, content_transformer(function(x) 
+  gsub(x, pattern = "banks", replacement = "bank")))
+docs0<-tm_map(docs0, content_transformer(function(x) 
+  gsub(x, pattern = "banks", replacement = "bank")))
+docs1<-tm_map(docs1, content_transformer(function(x) 
+  gsub(x, pattern = "banks", replacement = "bank")))
+
+docs<-tm_map(docs, content_transformer(function(x) 
+  gsub(x, pattern = "easement", replacement = "easements")))
+docs0<-tm_map(docs0, content_transformer(function(x) 
+  gsub(x, pattern = "easement", replacement = "easements")))
+docs1<-tm_map(docs1, content_transformer(function(x) 
+  gsub(x, pattern = "easement", replacement = "easements")))
+
+docs<-tm_map(docs, content_transformer(function(x) 
+  gsub(x, pattern = "benchmarks", replacement = "benchmarking")))
+docs0<-tm_map(docs0, content_transformer(function(x) 
+  gsub(x, pattern = "benchmarks", replacement = "benchmarking")))
+docs1<-tm_map(docs1, content_transformer(function(x) 
+  gsub(x, pattern = "benchmarks", replacement = "benchmarking")))
+
+docs<-tm_map(docs, content_transformer(function(x) 
+  gsub(x, pattern = "leasing", replacement = "lease")))
+docs0<-tm_map(docs0, content_transformer(function(x) 
+  gsub(x, pattern = "leasing", replacement = "lease")))
+docs1<-tm_map(docs1, content_transformer(function(x) 
+  gsub(x, pattern = "leasing", replacement = "lease")))
 
 docs<-tm_map(docs, content_transformer(function(x) 
   gsub(x, pattern = "agricultural", replacement = "agriculture")))
@@ -443,7 +535,6 @@ inspect(docs)
 inspect(docs0)
 inspect(docs1)
 
-
 dtm <- TermDocumentMatrix(docs)
 inspect(dtm[1:5, 1:33])
 m <- as.matrix(dtm)
@@ -459,20 +550,18 @@ v0 <- sort(rowSums(m0),decreasing=TRUE)
 d0 <- data.frame(word = names(v0),freq=v0)
 head(d0, 100)
 
-
 dtm1 <- TermDocumentMatrix(docs1)
 m1 <- as.matrix(dtm1)
 v1 <- sort(rowSums(m1),decreasing=TRUE)
 d1 <- data.frame(word = names(v1),freq=v1)
 head(d1, 10)
 
-
 set.seed(1234)
-png("allWords.png", width=800, height=800)
+#png("allWords.png", width=800, height=800)
 wordcloud(words = d0$word, freq = d0$freq, min.freq = 1,
           max.words=200, random.order=FALSE, rot.per=0.4, 
           colors=brewer.pal(8, "Dark2"))
-dev.off()
+#dev.off()
 wordcloud(words = d$word, freq = d$freq, min.freq = 1,
           max.words=200, random.order=FALSE, rot.per=0.35, 
           colors=brewer.pal(8, "Dark2"))
@@ -480,27 +569,40 @@ wordcloud(words = d1$word, freq = d1$freq, min.freq = 1,
           max.words=100, random.order=FALSE, rot.per=0.35, 
           colors=brewer.pal(8, "Dark2"))
 
+#commonality.cloud(term.matrix,max.words=40,random.order=FALSE)
+#commonality.cloud(dtm1, max.words=40, random.order=FALSE)
+
+# for wordcloud2() may need to manually save images from Export button
+#png("barnWords.png", width=800, height=800)
+wordcloud2(d0, 
+           size = 0.4, 
+           #color = "skyblue", 
+           figPath = "barn.png", backgroundColor="white") 
+#dev.off()
+wordcloud2(d0, 
+           size = 0.4, 
+           figPath = "asfmra2.png", backgroundColor="white") 
 
 d03<-subset(d0, freq>=3)
 ggplot(d03, aes(x=reorder(word, freq), y=freq)) +   geom_bar(stat="identity") + 
   xlab(NULL) + ylab("frequency count") + 
   scale_y_continuous(breaks=seq(0,50,1)) +
   theme_bw() + coord_flip()
-ggsave("titleWordFreq3.png", width=6, height=18, units="in")
+ggsave("OldTitleWordFreq3.png", width=6, height=18, units="in")
 
 d04<-subset(d0, freq>=4)
 ggplot(d04, aes(x=reorder(word, freq), y=freq)) +   geom_bar(stat="identity") + 
   xlab(NULL) + ylab("frequency count") + 
   scale_y_continuous(breaks=seq(0,50,1)) +
   theme_bw() + coord_flip()
-ggsave("titleWordFreq0.png", width=6, height=4, units="in")
+ggsave("OldTitleWordFreq0.png", width=6, height=4, units="in")
 
-d02<-subset(d0, freq>=2)
+d02<-subset(d0, freq>=9)
 ggplot(d02, aes(x=reorder(word, freq), y=freq)) +   geom_bar(stat="identity") + 
   xlab(NULL) + ylab("frequency count") +
-  scale_y_continuous(breaks=seq(0,50,1)) +
+  scale_y_continuous(breaks=seq(0,250,1)) +
   theme_bw() + coord_flip()
-ggsave("titleWordFreq2.png", width=6, height=18, units="in")
+ggsave("OldTitleWordFreq2.png", width=6, height=18, units="in")
 
 
 ###############
@@ -515,15 +617,31 @@ d0$winner<-"NotWinner"
 dall<-full_join(d1,d0, by="word")
 head(dall)
 dall$freq<-dall$freq.x+dall$freq.y
-dall<-subset(dall, freqAll>=9)
-ggplot(dall) + 
+dall$ratio<-dall$freq.x/dall$freq.y
+dallShort<-subset(dall, freqAll>=9)
+
+ggplot(dallShort) + 
   geom_bar(aes(x=reorder(word, freqAll), y=freqAll), stat="identity", col="black", fill="grey") + 
   geom_bar(aes(x=word, y=freqGQ), stat="identity", col="black", fill="gold") + 
-  xlab(NULL) + ylab("word frequency in titles of all articles (Gold Quill in gold)") + theme_bw() + coord_flip()
-ggsave("Fig7wordCountAllPapers.png", width=6, height=5)
+  xlab(NULL) + ylab("word frequency of title words (Gold Quill in gold)") + theme_bw() + coord_flip()
+ggsave("Fig6wordCountAllPapers.png", width=6, height=7)
 
-ggplot(dall) + 
+ggplot(dallShort) + 
   geom_bar(aes(x=word, y=freqAll), stat="identity", col="black", fill="grey") + 
   geom_bar(aes(x=word, y=freqGQ), stat="identity", col="black", fill="gold") + 
   xlab(NULL) + ylab("word frequency in titles of all articles (Gold Quill in gold)") + theme_bw() + coord_flip()
 ggsave("testFig7wordCountAllPapers.png", width=6, height=40)
+
+head(dall)
+
+dallRatio<-subset(dall, ratio>=0)
+dallRatioOne<-subset(dallRatio, ratio==1)
+dallRatio<-subset(dallRatio, freq.x>=2)
+#dallRatio<-subset(dallRatio, quill=="won")
+ggplot(dallRatio) + 
+  geom_bar(aes(x=reorder(word, ratio), y=ratio), stat="identity", col="black", fill="grey") + 
+  #geom_bar(aes(x=word, y=freqGQ), stat="identity", col="black", fill="gold") + 
+  xlab(NULL) + ylab("ratio of Gold Quill title words to all articles") + theme_bw() + coord_flip()
+ggsave("Fig11wordRatioAllPapers.png", width=6, height=5)
+
+
